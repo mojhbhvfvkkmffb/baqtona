@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>خمن الكلمة - فرق</title>
+<style>
+:root{
+  --bg1:#fef3e2; --bg2:#ffe0e9; --card:#ffffff; --text:#2d2440; --sub:#7a7290;
+  --accent:#ff6b81; --accent2:#7c5cff; --good:#2ecc71; --bad:#ff4d4d; --ring:#eee;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg1:#1a1530; --bg2:#241b3d; --card:#2a2245; --text:#f2eefb; --sub:#b3a9d1; --ring:#3a3160; }
+}
+:root[data-theme="dark"]{ --bg1:#1a1530; --bg2:#241b3d; --card:#2a2245; --text:#f2eefb; --sub:#b3a9d1; --ring:#3a3160; }
+html{ scroll-padding-top:env(safe-area-inset-top,0px); height:100%; }
+*{ box-sizing:border-box; }
+body{
+  height:100%; margin:0; font-family:'Segoe UI', Tahoma, Arial, sans-serif;
+  background:linear-gradient(135deg,var(--bg1),var(--bg2)); color:var(--text);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.card{ width:100%; max-width:440px; background:var(--card); border-radius:24px; padding:26px 20px; box-shadow:0 20px 50px rgba(0,0,0,.15); text-align:center; }
+.teams{ display:flex; gap:10px; margin-bottom:14px; }
+.team{ flex:1; padding:10px 6px; border-radius:14px; background:var(--ring); font-size:13px; }
+.team.active{ background:var(--accent2); color:#fff; }
+.team .name{ font-weight:700; font-size:14px; margin-bottom:2px; }
+.team .pts{ font-size:20px; font-weight:800; }
+.turn{ font-size:14px; color:var(--sub); margin-bottom:10px; }
+.pieces{ display:flex; align-items:center; justify-content:center; gap:14px; margin:16px 0; }
+.emoji{ font-size:60px; background:var(--ring); border-radius:20px; padding:12px 16px; }
+.plus{ font-size:26px; color:var(--sub); }
+#feedback{ min-height:44px; font-size:15px; font-weight:600; margin-bottom:6px; }
+#answerLine{ font-size:14px; color:var(--accent2); font-weight:700; margin-top:4px; }
+input{ width:100%; padding:14px; border-radius:14px; border:2px solid var(--ring); background:transparent; color:var(--text); font-size:17px; text-align:center; outline:none; margin-bottom:14px; }
+input:focus{ border-color:var(--accent2); }
+input:disabled{ opacity:.6; }
+.row{ display:flex; gap:10px; }
+button{ flex:1; padding:13px; border:none; border-radius:14px; font-size:15px; font-weight:700; cursor:pointer; }
+.btn-main{ background:var(--accent); color:#fff; }
+.btn-alt{ background:var(--ring); color:var(--text); }
+button:disabled{ opacity:.45; cursor:not-allowed; }
+.hint{ margin-top:10px; font-size:13px; color:var(--sub); cursor:pointer; text-decoration:underline; }
+.hint.used{ opacity:.4; cursor:not-allowed; text-decoration:none; }
+.progress{ height:6px; background:var(--ring); border-radius:6px; overflow:hidden; margin-top:16px; }
+.bar{ height:100%; background:var(--accent2); transition:width .3s; }
+#endScreen{ display:none; }
+#setupScreen input{ margin-bottom:10px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="setupScreen">
+    <h1 style="margin-top:0">🧩 خمّن الكلمة</h1>
+    <p style="color:var(--sub); font-size:14px">اكتب اسم كل فريق وابدأ اللعب</p>
+    <input id="nameA" placeholder="اسم الفريق الأول" value="الفريق الأول">
+    <input id="nameB" placeholder="اسم الفريق الثاني" value="الفريق الثاني">
+    <button class="btn-main" style="width:100%" onclick="startGame()">ابدأ اللعبة 🚀</button>
+  </div>
+
+  <div id="gameScreen" style="display:none">
+    <div class="teams">
+      <div class="team" id="teamCardA"><div class="name" id="teamNameA"></div><div class="pts" id="scoreA">0</div></div>
+      <div class="team" id="teamCardB"><div class="name" id="teamNameB"></div><div class="pts" id="scoreB">0</div></div>
+    </div>
+    <div class="turn">فقرة <span id="qnum">1</span>/15 — دور <span id="turnName"></span></div>
+    <div class="pieces">
+      <span class="emoji" id="emoji1">🍯</span>
+      <span class="plus">+</span>
+      <span class="emoji" id="emoji2">🌙</span>
+    </div>
+    <div id="feedback"></div>
+    <input id="guessInput" type="text" placeholder="اكتب تخمين الفريق هنا..." autocomplete="off">
+    <div class="row" id="actionRow">
+      <button class="btn-main" onclick="checkGuess()">تحقق ✅</button>
+      <button class="btn-alt" onclick="revealAndNext()">تخطي ⏭️</button>
+    </div>
+    <div class="row" id="nextRow" style="display:none">
+      <button class="btn-main" style="width:100%" onclick="goNext()">التالي ▶️</button>
+    </div>
+    <div class="hint" id="hintBtn" onclick="showHint()">تلميح 💡 (متبقي لفريقك: <span id="hintsLeft">1</span>)</div>
+    <div class="progress"><div class="bar" id="progBar"></div></div>
+  </div>
+
+  <div id="endScreen">
+    <h1>🎉 انتهت اللعبة!</h1>
+    <p id="resultLine" style="font-size:18px; font-weight:700; color:var(--accent2)"></p>
+    <p style="color:var(--sub); margin-top:16px" id="scoreSummary"></p>
+    <button class="btn-main" style="width:100%; margin-top:14px" onclick="location.reload()">العب من جديد 🔁</button>
+  </div>
+</div>
+<script>
+const puzzles = [
+  {e:["⚽","🦶"], a:["كرة القدم","كرةالقدم"]},
+  {e:["🍯","🌙"], a:["شهر العسل","شهرالعسل"]},
+  {e:["🦁","🌊"], a:["أسد البحر","اسد البحر"]},
+  {e:["🐴","🌊"], a:["حصان البحر"]},
+  {e:["⭐","🌊"], a:["نجم البحر"]},
+  {e:["👑","🐝"], a:["ملكة النحل"]},
+  {e:["🎂","🎉"], a:["عيد ميلاد","عيد الميلاد"]},
+  {e:["🐍","🌊"], a:["ثعبان البحر"]},
+  {e:["🕷️","🏠"], a:["بيت العنكبوت"]},
+  {e:["🗺️","🌍"], a:["خريطة العالم"]},
+  {e:["🐝","🏠"], a:["خلية النحل"]},
+  {e:["☀️","🌱"], a:["عباد الشمس"]},
+  {e:["💧","🌹"], a:["ماء الورد"]},
+  {e:["🧂","🌊"], a:["ملح البحر"]},
+  {e:["🌸","🍊"], a:["زهر البرتقال"]}
+];
+let order = [], idx = 0, current = "A";
+let score = {A:0, B:0};
+let hintsLeft = {A:1, B:1};
+let hintUsedThisTurn = false;
+let names = {A:"الفريق الأول", B:"الفريق الثاني"};
+
+function normalize(s){
+  return s.trim().replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/\s+/g," ").replace(/ال/g,"").toLowerCase();
+}
+function shuffle(arr){ return arr.sort(()=>Math.random()-0.5); }
+
+function startGame(){
+  names.A = document.getElementById("nameA").value.trim() || "الفريق الأول";
+  names.B = document.getElementById("nameB").value.trim() || "الفريق الثاني";
+  document.getElementById("teamNameA").textContent = names.A;
+  document.getElementById("teamNameB").textContent = names.B;
+  order = shuffle([...Array(puzzles.length).keys()]);
+  document.getElementById("setupScreen").style.display = "none";
+  document.getElementById("gameScreen").style.display = "block";
+  loadPuzzle();
+}
+
+function updateTeamUI(){
+  document.getElementById("scoreA").textContent = score.A;
+  document.getElementById("scoreB").textContent = score.B;
+  document.getElementById("teamCardA").classList.toggle("active", current==="A");
+  document.getElementById("teamCardB").classList.toggle("active", current==="B");
+  document.getElementById("turnName").textContent = names[current];
+  document.getElementById("hintsLeft").textContent = hintsLeft[current];
+  const hintBtn = document.getElementById("hintBtn");
+  hintBtn.classList.toggle("used", hintsLeft[current] <= 0);
+}
+
+function loadPuzzle(){
+  const p = puzzles[order[idx]];
+  document.getElementById("emoji1").textContent = p.e[0];
+  document.getElementById("emoji2").textContent = p.e[1];
+  document.getElementById("guessInput").value = "";
+  document.getElementById("guessInput").disabled = false;
+  document.getElementById("feedback").innerHTML = "";
+  document.getElementById("qnum").textContent = idx + 1;
+  document.getElementById("progBar").style.width = (idx/order.length*100)+"%";
+  document.getElementById("actionRow").style.display = "flex";
+  document.getElementById("nextRow").style.display = "none";
+  hintUsedThisTurn = false;
+  updateTeamUI();
+  document.getElementById("guessInput").focus();
+}
+
+function revealAnswer(correct){
+  const p = puzzles[order[idx]];
+  const fb = document.getElementById("feedback");
+  const line = correct ? "🎉 إجابة صحيحة!" : "الإجابة الصحيحة هي:";
+  fb.innerHTML = `<div style="color:${correct?'var(--good)':'var(--bad)'}">${line}</div><div id="answerLine">${p.a[0]}</div>`;
+  document.getElementById("guessInput").disabled = true;
+  document.getElementById("actionRow").style.display = "none";
+  document.getElementById("nextRow").style.display = "flex";
+}
+
+function checkGuess(){
+  const p = puzzles[order[idx]];
+  const val = normalize(document.getElementById("guessInput").value);
+  if(!val){ document.getElementById("feedback").textContent = "اكتب تخمين الفريق أولاً 🙂"; return; }
+  const correct = p.a.some(a => normalize(a) === val);
+  if(correct){
+    score[current] += hintUsedThisTurn ? 5 : 10;
+  }
+  revealAnswer(correct);
+}
+
+function revealAndNext(){ revealAnswer(false); }
+
+function showHint(){
+  if(hintsLeft[current] <= 0) return;
+  hintsLeft[current]--;
+  hintUsedThisTurn = true;
+  const p = puzzles[order[idx]];
+  const answer = p.a[0];
+  const words = answer.split(" ");
+  const revealed = words.map(w => w[0] + "_".repeat(w.length-1)).join(" ");
+  document.getElementById("feedback").textContent = "تلميح: " + revealed;
+  updateTeamUI();
+}
+
+function goNext(){
+  idx++;
+  current = current === "A" ? "B" : "A";
+  if(idx >= order.length){ endGame(); return; }
+  loadPuzzle();
+}
+
+function endGame(){
+  document.getElementById("gameScreen").style.display = "none";
+  document.getElementById("endScreen").style.display = "block";
+  let result;
+  if(score.A === score.B) result = "🤝 تعادل!";
+  else result = (score.A > score.B ? names.A : names.B) + " هو الفائز! 🏆";
+  document.getElementById("resultLine").textContent = result;
+  document.getElementById("scoreSummary").textContent = `${names.A}: ${score.A} نقطة  |  ${names.B}: ${score.B} نقطة`;
+}
+
+document.getElementById("guessInput").addEventListener("keydown", e=>{ if(e.key==="Enter") checkGuess(); });
+</script>
+</body>
+</html>
